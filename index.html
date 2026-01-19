@@ -57,7 +57,7 @@
 
     <section class="card">
       <div class="section-header">
-        <h2>이번 주 캘린더</h2>
+        <h2 id="calendar-title">이번 주 캘린더</h2>
         <div class="week-nav">
           <button class="ghost small" type="button" id="prev-week" aria-label="이전 주">◀</button>
           <span class="pill" id="week-range"></span>
@@ -67,26 +67,7 @@
       <div id="calendar" class="calendar"></div>
     </section>
 
-    <section class="card">
-      <div class="section-header">
-        <h2>예약 목록</h2>
-        <span class="pill" id="count">0건</span>
-      </div>
-      <ul id="booking-list" class="list"></ul>
-    </section>
   </main>
-
-  <template id="booking-item-template">
-    <li class="list-item">
-      <div>
-        <div class="title"></div>
-        <div class="meta">
-          <span class="meta-text"></span>
-        </div>
-      </div>
-      <button class="ghost small" type="button">삭제</button>
-    </li>
-  </template>
 
   <template id="calendar-day-template">
     <div class="calendar-day">
@@ -97,7 +78,10 @@
 
   <template id="calendar-item-template">
     <div class="calendar-item">
-      <div class="calendar-title"></div>
+      <div class="calendar-item-header">
+        <div class="calendar-title"></div>
+        <button class="ghost small calendar-delete" type="button">삭제</button>
+      </div>
       <div class="calendar-time"></div>
     </div>
   </template>

@@ -1,14 +1,12 @@
 const form = document.getElementById("booking-form");
 const helper = document.getElementById("helper");
-const list = document.getElementById("booking-list");
-const count = document.getElementById("count");
-const template = document.getElementById("booking-item-template");
 const calendar = document.getElementById("calendar");
 const weekRange = document.getElementById("week-range");
 const calendarDayTemplate = document.getElementById("calendar-day-template");
 const calendarItemTemplate = document.getElementById("calendar-item-template");
 const prevWeekButton = document.getElementById("prev-week");
 const nextWeekButton = document.getElementById("next-week");
+const calendarTitle = document.getElementById("calendar-title");
 
 const teamNameInput = document.getElementById("team-name");
 const dateInput = document.getElementById("date");
@@ -23,10 +21,6 @@ const formatDate = (date) => {
   const month = pad(date.getMonth() + 1);
   const day = pad(date.getDate());
   return `${year}-${month}-${day}`;
-};
-
-const formatKoreanDate = (date) => {
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
 };
 
 const formatMonthDay = (date) => {
@@ -116,48 +110,6 @@ const deleteBooking = async (id, password) => {
   }
 };
 
-
-const renderList = (bookings) => {
-  list.innerHTML = "";
-  count.textContent = `${bookings.length}건`;
-
-  if (bookings.length === 0) {
-    const empty = document.createElement("li");
-    empty.className = "list-item";
-    empty.textContent = "아직 예약이 없습니다.";
-    list.appendChild(empty);
-    return;
-  }
-
-  bookings.forEach((booking) => {
-    const node = template.content.cloneNode(true);
-    const item = node.querySelector(".list-item");
-    const title = node.querySelector(".title");
-    const metaText = node.querySelector(".meta-text");
-    const button = node.querySelector("button");
-
-    const dateText = formatKoreanDate(new Date(`${booking.date}T00:00:00`));
-    title.textContent = booking.teamName;
-    metaText.textContent = `${dateText} · ${booking.startTime} ~ ${booking.endTime} (${booking.duration}분)`;
-
-    button.addEventListener("click", async () => {
-      if (!confirm("이 예약을 삭제할까요?")) return;
-      const password = prompt("삭제 비밀번호를 입력해 주세요.");
-      if (!password) return;
-      try {
-        await deleteBooking(booking.id, password.trim());
-        await refreshBookings();
-        showMessage("예약이 삭제되었습니다.", false);
-      } catch (error) {
-        showMessage(error.message || "삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-      }
-    });
-
-    item.dataset.id = booking.id;
-    list.appendChild(node);
-  });
-};
-
 let weekOffset = 0;
 
 const renderCalendar = (bookings) => {
@@ -168,6 +120,8 @@ const renderCalendar = (bookings) => {
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   weekRange.textContent = `${formatMonthDay(start)} ~ ${formatMonthDay(end)}`;
+  const weekLabel = weekOffset === 0 ? "이번 주" : weekOffset > 0 ? `+${weekOffset}주` : `${weekOffset}주`;
+  calendarTitle.textContent = `${weekLabel} 캘린더`;
 
   const grouped = bookings.reduce((acc, booking) => {
     if (!acc[booking.date]) acc[booking.date] = [];
@@ -199,6 +153,21 @@ const renderCalendar = (bookings) => {
         const itemNode = calendarItemTemplate.content.cloneNode(true);
         itemNode.querySelector(".calendar-title").textContent = booking.teamName;
         itemNode.querySelector(".calendar-time").textContent = `${booking.startTime} ~ ${booking.endTime}`;
+        const deleteButton = itemNode.querySelector(".calendar-delete");
+
+        deleteButton.addEventListener("click", async () => {
+          if (!confirm("이 예약을 삭제할까요?")) return;
+          const password = prompt("삭제 비밀번호를 입력해 주세요.");
+          if (!password) return;
+          try {
+            await deleteBooking(booking.id, password.trim());
+            await refreshBookings();
+            showMessage("예약이 삭제되었습니다.", false);
+          } catch (error) {
+            showMessage(error.message || "삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+          }
+        });
+
         slots.appendChild(itemNode);
       });
     }
@@ -210,7 +179,6 @@ const renderCalendar = (bookings) => {
 const refreshBookings = async () => {
   try {
     const allBookings = await fetchAllBookings();
-    renderList(allBookings);
     renderCalendar(allBookings);
   } catch (error) {
     showMessage("예약 목록을 불러오지 못했습니다. 서버 상태를 확인해 주세요.");

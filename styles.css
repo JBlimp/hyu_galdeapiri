@@ -246,6 +246,18 @@ body {
   gap: 4px;
 }
 
+.calendar-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calendar-delete {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .calendar-item.empty {
   background: transparent;
   color: #94a3b8;

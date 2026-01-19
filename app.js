@@ -1,0 +1,281 @@
+const form = document.getElementById("booking-form");
+const helper = document.getElementById("helper");
+const list = document.getElementById("booking-list");
+const count = document.getElementById("count");
+const clearAllButton = document.getElementById("clear-all");
+const template = document.getElementById("booking-item-template");
+const calendar = document.getElementById("calendar");
+const weekRange = document.getElementById("week-range");
+const calendarDayTemplate = document.getElementById("calendar-day-template");
+const calendarItemTemplate = document.getElementById("calendar-item-template");
+
+const teamNameInput = document.getElementById("team-name");
+const dateInput = document.getElementById("date");
+const startTimeInput = document.getElementById("start-time");
+const durationInput = document.getElementById("duration");
+
+const pad = (value) => String(value).padStart(2, "0");
+
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  return `${year}-${month}-${day}`;
+};
+
+const formatKoreanDate = (date) => {
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+};
+
+const formatMonthDay = (date) => {
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+const timeToMinutes = (time) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const minutesToTime = (minutes) => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${pad(hours)}:${pad(mins)}`;
+};
+
+const showMessage = (message, isError = true) => {
+  helper.textContent = message;
+  helper.style.color = isError ? "#ef4444" : "#10b981";
+};
+
+const setDateLimits = () => {
+  const today = new Date();
+  const maxDate = new Date();
+  maxDate.setDate(today.getDate() + 7);
+
+  const todayString = formatDate(today);
+  const maxString = formatDate(maxDate);
+
+  dateInput.min = todayString;
+  dateInput.max = maxString;
+
+  if (!dateInput.value) {
+    dateInput.value = todayString;
+  }
+};
+
+const isWithinWindow = (dateValue) => {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(`${dateValue}T00:00:00`);
+  const max = new Date(start);
+  max.setDate(start.getDate() + 7);
+  return target >= start && target <= max;
+};
+
+const hasConflict = (bookings, date, startMinutes, endMinutes) => {
+  return bookings.some((booking) => {
+    if (booking.date !== date) return false;
+    const existingStart = booking.startMinutes;
+    const existingEnd = booking.endMinutes;
+    return startMinutes < existingEnd && endMinutes > existingStart;
+  });
+};
+
+const fetchAllBookings = async () => {
+  const response = await fetch("/api/bookings");
+  if (!response.ok) {
+    throw new Error("failed");
+  }
+  return response.json();
+};
+
+const createBooking = async (payload) => {
+  const response = await fetch("/api/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "예약 실패" }));
+    throw new Error(error.message || "예약 실패");
+  }
+  return response.json();
+};
+
+const deleteBooking = async (id) => {
+  const response = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error("삭제 실패");
+  }
+};
+
+const deleteAllBookings = async () => {
+  const response = await fetch("/api/bookings", { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error("전체 삭제 실패");
+  }
+};
+
+const renderList = (bookings) => {
+  list.innerHTML = "";
+  count.textContent = `${bookings.length}건`;
+
+  if (bookings.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "list-item";
+    empty.textContent = "아직 예약이 없습니다.";
+    list.appendChild(empty);
+    return;
+  }
+
+  bookings.forEach((booking) => {
+    const node = template.content.cloneNode(true);
+    const item = node.querySelector(".list-item");
+    const title = node.querySelector(".title");
+    const metaText = node.querySelector(".meta-text");
+    const button = node.querySelector("button");
+
+    const dateText = formatKoreanDate(new Date(`${booking.date}T00:00:00`));
+    title.textContent = booking.teamName;
+    metaText.textContent = `${dateText} · ${booking.startTime} ~ ${booking.endTime} (${booking.duration}분)`;
+
+    button.addEventListener("click", async () => {
+      if (!confirm("이 예약을 삭제할까요?")) return;
+      try {
+        await deleteBooking(booking.id);
+        await refreshBookings();
+        showMessage("예약이 삭제되었습니다.", false);
+      } catch (error) {
+        showMessage("삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    });
+
+    item.dataset.id = booking.id;
+    list.appendChild(node);
+  });
+};
+
+const renderCalendar = (bookings) => {
+  calendar.innerHTML = "";
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  weekRange.textContent = `${formatMonthDay(start)} ~ ${formatMonthDay(end)}`;
+
+  const grouped = bookings.reduce((acc, booking) => {
+    if (!acc[booking.date]) acc[booking.date] = [];
+    acc[booking.date].push(booking);
+    return acc;
+  }, {});
+
+  for (let i = 0; i < 7; i += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const dateKey = formatDate(date);
+    const dayNode = calendarDayTemplate.content.cloneNode(true);
+    const dayHeader = dayNode.querySelector(".calendar-day-header");
+    const slots = dayNode.querySelector(".calendar-slots");
+
+    dayHeader.textContent = `${formatMonthDay(date)} (${["일", "월", "화", "수", "목", "금", "토"][date.getDay()]})`;
+
+    const dayBookings = (grouped[dateKey] || []).sort(
+      (a, b) => a.startMinutes - b.startMinutes
+    );
+
+    if (dayBookings.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "calendar-item empty";
+      empty.textContent = "예약 없음";
+      slots.appendChild(empty);
+    } else {
+      dayBookings.forEach((booking) => {
+        const itemNode = calendarItemTemplate.content.cloneNode(true);
+        itemNode.querySelector(".calendar-title").textContent = booking.teamName;
+        itemNode.querySelector(".calendar-time").textContent = `${booking.startTime} ~ ${booking.endTime}`;
+        slots.appendChild(itemNode);
+      });
+    }
+
+    calendar.appendChild(dayNode);
+  }
+};
+
+const refreshBookings = async () => {
+  try {
+    const allBookings = await fetchAllBookings();
+    renderList(allBookings);
+    renderCalendar(allBookings);
+  } catch (error) {
+    showMessage("예약 목록을 불러오지 못했습니다. 서버 상태를 확인해 주세요.");
+  }
+};
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  helper.textContent = "";
+
+  const teamName = teamNameInput.value.trim();
+  const dateValue = dateInput.value;
+  const startTime = startTimeInput.value;
+  const duration = Number(durationInput.value);
+
+  if (!teamName || !dateValue || !startTime || !duration) {
+    showMessage("모든 항목을 입력해 주세요.");
+    return;
+  }
+
+  if (!isWithinWindow(dateValue)) {
+    showMessage("예약은 오늘부터 7일 이내 날짜만 가능합니다.");
+    return;
+  }
+
+  if (duration > 120) {
+    showMessage("최대 2시간(120분)까지만 예약 가능합니다.");
+    return;
+  }
+
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = startMinutes + duration;
+
+  if (endMinutes > 24 * 60) {
+    showMessage("종료 시간이 자정을 넘을 수 없습니다.");
+    return;
+  }
+
+  try {
+    const existing = await fetchAllBookings();
+    if (hasConflict(existing, dateValue, startMinutes, endMinutes)) {
+      showMessage("해당 시간에 이미 예약이 있습니다.");
+      return;
+    }
+
+    await createBooking({
+      teamName,
+      date: dateValue,
+      startTime,
+      duration,
+    });
+
+    showMessage("예약이 완료되었습니다.", false);
+    form.reset();
+    setDateLimits();
+    await refreshBookings();
+  } catch (error) {
+    showMessage(error.message || "예약에 실패했습니다.");
+  }
+});
+
+clearAllButton.addEventListener("click", async () => {
+  if (!confirm("모든 예약을 삭제할까요?")) return;
+  try {
+    await deleteAllBookings();
+    await refreshBookings();
+    showMessage("모든 예약이 삭제되었습니다.", false);
+  } catch (error) {
+    showMessage("전체 삭제에 실패했습니다.");
+  }
+});
+
+setDateLimits();
+refreshBookings();

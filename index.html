@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>갈대피리 동방 예약</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="badge">갈대피리</div>
+      <h1>동방 합주 예약</h1>
+      <p class="subtitle">1주일 전부터 예약 가능 · 최대 2시간</p>
+    </header>
+
+    <section class="card">
+      <form id="booking-form" novalidate>
+        <div class="grid">
+          <label class="field">
+            <span>팀 이름 (곡 이름)</span>
+            <input id="team-name" name="teamName" type="text" placeholder="예: 바람의 노래" required maxlength="50" />
+          </label>
+
+          <label class="field">
+            <span>예약 날짜</span>
+            <input id="date" name="date" type="date" required />
+          </label>
+
+          <label class="field">
+            <span>시작 시간</span>
+            <input id="start-time" name="startTime" type="time" required />
+          </label>
+
+          <label class="field">
+            <span>사용 시간 (분)</span>
+            <select id="duration" name="duration" required>
+              <option value="60">60분</option>
+              <option value="90">90분</option>
+              <option value="120">120분</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="primary" type="submit">예약하기</button>
+          <button class="ghost" type="button" id="clear-all">전체 예약 삭제</button>
+        </div>
+
+        <p class="helper" id="helper"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>이번 주 캘린더</h2>
+        <span class="pill" id="week-range"></span>
+      </div>
+      <div id="calendar" class="calendar"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>예약 목록</h2>
+        <span class="pill" id="count">0건</span>
+      </div>
+      <ul id="booking-list" class="list"></ul>
+    </section>
+  </main>
+
+  <template id="booking-item-template">
+    <li class="list-item">
+      <div>
+        <div class="title"></div>
+        <div class="meta">
+          <span class="meta-text"></span>
+        </div>
+      </div>
+      <button class="ghost small" type="button">삭제</button>
+    </li>
+  </template>
+
+  <template id="calendar-day-template">
+    <div class="calendar-day">
+      <div class="calendar-day-header"></div>
+      <div class="calendar-slots"></div>
+    </div>
+  </template>
+
+  <template id="calendar-item-template">
+    <div class="calendar-item">
+      <div class="calendar-title"></div>
+      <div class="calendar-time"></div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

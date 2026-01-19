@@ -4,6 +4,7 @@ const fs = require("fs");
 const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 const { randomUUID } = require("crypto");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,9 +26,16 @@ const ensureDb = async () => {
       duration integer not null,
       start_minutes integer not null,
       end_minutes integer not null,
-      created_at text not null
+      created_at text not null,
+      password_hash text
     );
   `);
+
+  const columns = await db.all("pragma table_info(bookings)");
+  const hasPasswordHash = columns.some((column) => column.name === "password_hash");
+  if (!hasPasswordHash) {
+    await db.exec("alter table bookings add column password_hash text");
+  }
 };
 
 const parseTimeToMinutes = (value) => {
@@ -73,9 +81,9 @@ app.get("/api/bookings", async (_req, res) => {
 });
 
 app.post("/api/bookings", async (req, res) => {
-  const { teamName, date, startTime, duration } = req.body || {};
+  const { teamName, date, startTime, duration, password } = req.body || {};
 
-  if (!teamName || !date || !startTime || !duration) {
+  if (!teamName || !date || !startTime || !duration || !password) {
     return res.status(400).json({ message: "모든 항목을 입력해 주세요." });
   }
 
@@ -90,6 +98,11 @@ app.post("/api/bookings", async (req, res) => {
   const durationNumber = Number(duration);
   if (!Number.isFinite(durationNumber) || durationNumber <= 0 || durationNumber > 120) {
     return res.status(400).json({ message: "최대 2시간(120분)까지만 예약 가능합니다." });
+  }
+
+  const passwordText = String(password).trim();
+  if (passwordText.length < 4 || passwordText.length > 20) {
+    return res.status(400).json({ message: "비밀번호는 4~20자리로 입력해 주세요." });
   }
 
   const startMinutes = parseTimeToMinutes(startTime);
@@ -118,11 +131,12 @@ app.post("/api/bookings", async (req, res) => {
   const id = randomUUID();
   const endTime = formatMinutesToTime(endMinutes);
   const createdAt = new Date().toISOString();
+  const passwordHash = await bcrypt.hash(passwordText, 10);
 
   await db.run(
-    `insert into bookings (id, team_name, date, start_time, end_time, duration, start_minutes, end_minutes, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, teamName.trim(), date, startTime, endTime, durationNumber, startMinutes, endMinutes, createdAt]
+    `insert into bookings (id, team_name, date, start_time, end_time, duration, start_minutes, end_minutes, created_at, password_hash)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, teamName.trim(), date, startTime, endTime, durationNumber, startMinutes, endMinutes, createdAt, passwordHash]
   );
 
   res.status(201).json({
@@ -139,13 +153,28 @@ app.post("/api/bookings", async (req, res) => {
 
 app.delete("/api/bookings/:id", async (req, res) => {
   const { id } = req.params;
-  await db.run("delete from bookings where id = ?", [id]);
-  res.status(204).send();
-});
+  const { password } = req.body || {};
+  const passwordText = String(password || "").trim();
+  if (!passwordText) {
+    return res.status(400).json({ message: "삭제 비밀번호를 입력해 주세요." });
+  }
 
-app.delete("/api/bookings", async (_req, res) => {
-  await db.run("delete from bookings");
-  res.status(204).send();
+  const booking = await db.get("select password_hash from bookings where id = ?", [id]);
+  if (!booking) {
+    return res.status(404).json({ message: "예약을 찾을 수 없습니다." });
+  }
+
+  if (!booking.password_hash) {
+    return res.status(409).json({ message: "비밀번호가 없는 예약은 삭제할 수 없습니다." });
+  }
+
+  const isValid = await bcrypt.compare(passwordText, booking.password_hash);
+  if (!isValid) {
+    return res.status(403).json({ message: "비밀번호가 일치하지 않습니다." });
+  }
+
+  await db.run("delete from bookings where id = ?", [id]);
+  return res.status(204).send();
 });
 
 ensureDb().then(() => {

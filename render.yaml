@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: galdeapiri-booking
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: booking-data
+      mountPath: /var/data
+      sizeGB: 1

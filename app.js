@@ -2,7 +2,6 @@ const form = document.getElementById("booking-form");
 const helper = document.getElementById("helper");
 const list = document.getElementById("booking-list");
 const count = document.getElementById("count");
-const clearAllButton = document.getElementById("clear-all");
 const template = document.getElementById("booking-item-template");
 const calendar = document.getElementById("calendar");
 const weekRange = document.getElementById("week-range");
@@ -13,6 +12,7 @@ const teamNameInput = document.getElementById("team-name");
 const dateInput = document.getElementById("date");
 const startTimeInput = document.getElementById("start-time");
 const durationInput = document.getElementById("duration");
+const passwordInput = document.getElementById("password");
 
 const pad = (value) => String(value).padStart(2, "0");
 
@@ -102,19 +102,18 @@ const createBooking = async (payload) => {
   return response.json();
 };
 
-const deleteBooking = async (id) => {
-  const response = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
+const deleteBooking = async (id, password) => {
+  const response = await fetch(`/api/bookings/${id}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
   if (!response.ok) {
-    throw new Error("삭제 실패");
+    const error = await response.json().catch(() => ({ message: "삭제 실패" }));
+    throw new Error(error.message || "삭제 실패");
   }
 };
 
-const deleteAllBookings = async () => {
-  const response = await fetch("/api/bookings", { method: "DELETE" });
-  if (!response.ok) {
-    throw new Error("전체 삭제 실패");
-  }
-};
 
 const renderList = (bookings) => {
   list.innerHTML = "";
@@ -141,12 +140,14 @@ const renderList = (bookings) => {
 
     button.addEventListener("click", async () => {
       if (!confirm("이 예약을 삭제할까요?")) return;
+      const password = prompt("삭제 비밀번호를 입력해 주세요.");
+      if (!password) return;
       try {
-        await deleteBooking(booking.id);
+        await deleteBooking(booking.id, password.trim());
         await refreshBookings();
         showMessage("예약이 삭제되었습니다.", false);
       } catch (error) {
-        showMessage("삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        showMessage(error.message || "삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
     });
 
@@ -219,9 +220,15 @@ form.addEventListener("submit", async (event) => {
   const dateValue = dateInput.value;
   const startTime = startTimeInput.value;
   const duration = Number(durationInput.value);
+  const password = passwordInput.value.trim();
 
-  if (!teamName || !dateValue || !startTime || !duration) {
+  if (!teamName || !dateValue || !startTime || !duration || !password) {
     showMessage("모든 항목을 입력해 주세요.");
+    return;
+  }
+
+  if (password.length < 4 || password.length > 20) {
+    showMessage("비밀번호는 4~20자리로 입력해 주세요.");
     return;
   }
 
@@ -255,6 +262,7 @@ form.addEventListener("submit", async (event) => {
       date: dateValue,
       startTime,
       duration,
+      password,
     });
 
     showMessage("예약이 완료되었습니다.", false);
@@ -263,17 +271,6 @@ form.addEventListener("submit", async (event) => {
     await refreshBookings();
   } catch (error) {
     showMessage(error.message || "예약에 실패했습니다.");
-  }
-});
-
-clearAllButton.addEventListener("click", async () => {
-  if (!confirm("모든 예약을 삭제할까요?")) return;
-  try {
-    await deleteAllBookings();
-    await refreshBookings();
-    showMessage("모든 예약이 삭제되었습니다.", false);
-  } catch (error) {
-    showMessage("전체 삭제에 실패했습니다.");
   }
 });
 

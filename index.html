@@ -40,11 +40,15 @@
               <option value="120">120분</option>
             </select>
           </label>
+
+          <label class="field">
+            <span>예약 비밀번호</span>
+            <input id="password" name="password" type="password" placeholder="4~20자리" required minlength="4" maxlength="20" />
+          </label>
         </div>
 
         <div class="actions">
           <button class="primary" type="submit">예약하기</button>
-          <button class="ghost" type="button" id="clear-all">전체 예약 삭제</button>
         </div>
 
         <p class="helper" id="helper"></p>

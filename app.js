@@ -7,6 +7,8 @@ const calendar = document.getElementById("calendar");
 const weekRange = document.getElementById("week-range");
 const calendarDayTemplate = document.getElementById("calendar-day-template");
 const calendarItemTemplate = document.getElementById("calendar-item-template");
+const prevWeekButton = document.getElementById("prev-week");
+const nextWeekButton = document.getElementById("next-week");
 
 const teamNameInput = document.getElementById("team-name");
 const dateInput = document.getElementById("date");
@@ -156,10 +158,13 @@ const renderList = (bookings) => {
   });
 };
 
+let weekOffset = 0;
+
 const renderCalendar = (bookings) => {
   calendar.innerHTML = "";
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  start.setDate(start.getDate() + weekOffset * 7);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   weekRange.textContent = `${formatMonthDay(start)} ~ ${formatMonthDay(end)}`;
@@ -211,6 +216,16 @@ const refreshBookings = async () => {
     showMessage("예약 목록을 불러오지 못했습니다. 서버 상태를 확인해 주세요.");
   }
 };
+
+prevWeekButton.addEventListener("click", () => {
+  weekOffset -= 1;
+  refreshBookings();
+});
+
+nextWeekButton.addEventListener("click", () => {
+  weekOffset += 1;
+  refreshBookings();
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

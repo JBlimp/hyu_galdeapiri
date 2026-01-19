@@ -151,6 +151,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  gap: 12px;
 }
 
 .section-header h2 {
@@ -164,6 +165,12 @@ body {
   border-radius: 999px;
   font-weight: 700;
   font-size: 13px;
+}
+
+.week-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .list {

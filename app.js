@@ -38,6 +38,12 @@ const minutesToTime = (minutes) => {
   return `${pad(hours)}:${pad(mins)}`;
 };
 
+const getWeekOfMonth = (date) => {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const offset = firstDay.getDay();
+  return Math.floor((date.getDate() + offset - 1) / 7) + 1;
+};
+
 const showMessage = (message, isError = true) => {
   helper.textContent = message;
   helper.style.color = isError ? "#ef4444" : "#10b981";
@@ -120,8 +126,8 @@ const renderCalendar = (bookings) => {
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   weekRange.textContent = `${formatMonthDay(start)} ~ ${formatMonthDay(end)}`;
-  const weekLabel = weekOffset === 0 ? "이번 주" : weekOffset > 0 ? `+${weekOffset}주` : `${weekOffset}주`;
-  calendarTitle.textContent = `${weekLabel} 캘린더`;
+  const weekOfMonth = getWeekOfMonth(start);
+  calendarTitle.textContent = `${start.getMonth() + 1}월 ${weekOfMonth}주차 캘린더`;
 
   const grouped = bookings.reduce((acc, booking) => {
     if (!acc[booking.date]) acc[booking.date] = [];
